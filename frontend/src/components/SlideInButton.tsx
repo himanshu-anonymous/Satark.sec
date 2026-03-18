@@ -28,3 +28,5 @@ const SlideInButton = ({ to, text }: SlideInButtonProps) => {
 };
 
 export default SlideInButton;
+
+// NOt used right now
