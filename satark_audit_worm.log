@@ -42,3 +42,12 @@
 {"timestamp_utc": "2026-03-17T19:32:47.837525+00:00", "institution_id": "SYSTEM", "event_type": "EPOCH_ROTATION", "payload_hash": -4717777582749820476, "data": {"status": "New epoch key generated for zero-knowledge masking"}}
 {"timestamp_utc": "2026-03-17T19:56:15.760539+00:00", "institution_id": "BNK-HDFC", "event_type": "LOGIN_SUCCESS", "payload_hash": -2231323394933373787, "data": {"role": "admin", "mfa_verified": true}}
 {"timestamp_utc": "2026-03-18T00:20:20.570861+00:00", "institution_id": "BNK-HDFC", "event_type": "LOGIN_SUCCESS", "payload_hash": 1954040435909833928, "data": {"role": "admin", "mfa_verified": true}}
+{"timestamp_utc": "2026-03-18T01:20:58.389212+00:00", "institution_id": "BNK-HDFC", "event_type": "LOGIN_SUCCESS", "payload_hash": 2539697296926371157, "data": {"role": "admin", "mfa_verified": true}}
+{"timestamp_utc": "2026-03-18T03:23:02.635858+00:00", "institution_id": "BNK-HDFC", "event_type": "LOGIN_SUCCESS", "payload_hash": 8100741072984365449, "data": {"role": "admin", "mfa_verified": true}}
+{"timestamp_utc": "2026-03-18T03:46:06.927238+00:00", "institution_id": "BNK-HDFC", "event_type": "LOGIN_SUCCESS", "payload_hash": 8100741072984365449, "data": {"role": "admin", "mfa_verified": true}}
+{"timestamp_utc": "2026-03-18T03:49:47.278352+00:00", "institution_id": "BNK-HDFC", "event_type": "PSI_INTERSECTION_EXECUTED", "payload_hash": -6988998721694320939, "data": {"match_count": 2}}
+{"timestamp_utc": "2026-03-18T08:31:53.442632+00:00", "institution_id": "SYSTEM", "event_type": "EPOCH_ROTATION", "payload_hash": -3951686689651525826, "data": {"status": "New epoch key generated for zero-knowledge masking"}}
+{"timestamp_utc": "2026-03-18T15:02:18.032663+00:00", "institution_id": "SYSTEM", "event_type": "EPOCH_ROTATION", "payload_hash": -1570138952083211075, "data": {"status": "New epoch key generated for zero-knowledge masking"}}
+{"timestamp_utc": "2026-03-18T15:51:49.739817+00:00", "institution_id": "SYSTEM", "event_type": "EPOCH_ROTATION", "payload_hash": -7850282892060849183, "data": {"status": "New epoch key generated for zero-knowledge masking"}}
+{"timestamp_utc": "2026-03-18T15:58:07.906731+00:00", "institution_id": "SYSTEM", "event_type": "EPOCH_ROTATION", "payload_hash": 2560364153068846501, "data": {"status": "New epoch key generated for zero-knowledge masking"}}
+{"timestamp_utc": "2026-03-18T16:19:07.843233+00:00", "institution_id": "BNK-HDFC", "event_type": "LOGIN_SUCCESS", "payload_hash": -8943262788444631046, "data": {"role": "admin", "mfa_verified": true}}
