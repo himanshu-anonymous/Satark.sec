@@ -1,3 +1,4 @@
+# Satark .gitignore - Phase 1 Finalized
 # Python / Backend
 __pycache__/
 venv/
@@ -21,3 +22,9 @@ dist/
 .DS_Store
 .vscode/
 .idea/
+
+# SATARK Cleanup
+query
+uploads/
+temp_uploads/
+make_fake_doc.py
