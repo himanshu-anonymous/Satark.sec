@@ -1,38 +1,34 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import NavigationBar from './components/NavigationBar.tsx';
-import CustomCursor from './components/CustomCursor.tsx';
 import Home from './pages/Home.tsx';
 import AboutUs from './pages/AboutUs.tsx';
-import Threats from './pages/Threats.tsx';
-import Pipeline from './pages/Pipeline.tsx';
-import Analytics from './pages/Analytics.tsx';
-import Portal from './pages/Portal.tsx';
 import Dashboard from './pages/Dashboard.tsx';
-import CitizenDashboard from './pages/CitizenDashboard.tsx';
-import Users from './pages/Users.tsx';
-import Login from './pages/Login.tsx';
-import Signup from './pages/Signup.tsx';
+import BankLogin from './pages/BankLogin.tsx';
+import BankRegister from './pages/BankRegister.tsx';
+import BankWorkspace from './pages/BankWorkspace.tsx';
 import SatarkFooter from './components/SatarkFooter.tsx';
 import Preloader from './components/Preloader.tsx';
 import SmoothScroll from './components/SmoothScroll.tsx';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLocation } from 'react-router-dom';
 import { useState, useEffect } from 'react';
+// @ts-ignore
+import { neonCursor } from 'cursor-effects';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
-  allowedRole?: string;
+  allowedRoles?: string[];
 }
 
-const ProtectedRoute = ({ children, allowedRole }: ProtectedRouteProps) => {
-  const token = localStorage.getItem('token');
-  const role = localStorage.getItem('role');
+const ProtectedRoute = ({ children, allowedRoles }: ProtectedRouteProps) => {
+  const token = localStorage.getItem('satark_token');
+  const userRole = localStorage.getItem('user_role') || 'analyst';
 
   if (!token) {
     return <Navigate to="/login" replace />;
   }
 
-  if (allowedRole && role !== allowedRole) {
+  if (allowedRoles && !allowedRoles.includes(userRole)) {
     return <Navigate to="/" replace />;
   }
 
@@ -54,44 +50,42 @@ const AnimatedRoutes = () => {
         <Routes location={location} key={location.pathname}>
           <Route path="/" element={<Home />} />
           <Route path="/about" element={<AboutUs />} />
-          <Route path="/threats" element={<Threats />} />
-          <Route path="/pipeline" element={<Pipeline />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/signup" element={<Signup />} />
+          <Route path="/login" element={<BankLogin />} />
+          <Route path="/register" element={<BankRegister />} />
 
           {/* Protected Routes */}
-          <Route path="/apply" element={
-            <ProtectedRoute>
-              <Portal />
-            </ProtectedRoute>
-          } />
-
-          <Route path="/analytics" element={
-            <ProtectedRoute allowedRole="admin">
-              <Analytics />
+          <Route path="/bank-workspace" element={
+            <ProtectedRoute allowedRoles={['analyst', 'supervisor', 'admin']}>
+              <BankWorkspace />
             </ProtectedRoute>
           } />
 
           <Route path="/dashboard" element={
-            <ProtectedRoute allowedRole="admin">
+            <ProtectedRoute allowedRoles={['analyst', 'supervisor', 'admin']}>
               <Dashboard />
-            </ProtectedRoute>
-          } />
-
-          <Route path="/citizens" element={
-            <ProtectedRoute allowedRole="admin">
-              <Users />
-            </ProtectedRoute>
-          } />
-
-          <Route path="/status" element={
-            <ProtectedRoute allowedRole="citizen">
-              <CitizenDashboard />
             </ProtectedRoute>
           } />
         </Routes>
       </motion.div>
     </AnimatePresence>
+  );
+};
+
+const AppContent = () => {
+  const location = useLocation();
+  const isDashboard = location.pathname.startsWith('/dashboard') || location.pathname.startsWith('/bank-workspace');
+
+  useEffect(() => {
+  }, []);
+
+  return (
+    <div id="app">
+      {!isDashboard && <NavigationBar />}
+      <main className={!isDashboard ? "pt-24 min-h-screen px-4 md:px-8 relative" : "h-screen w-full overflow-hidden relative"}>
+        <AnimatedRoutes />
+      </main>
+      {!isDashboard && <SatarkFooter />}
+    </div>
   );
 };
 
@@ -112,12 +106,7 @@ function App() {
       </AnimatePresence>
       <SmoothScroll>
         <Router>
-          <CustomCursor />
-          <NavigationBar />
-          <main className="pt-24 min-h-screen px-4 md:px-8">
-            <AnimatedRoutes />
-          </main>
-          <SatarkFooter />
+            <AppContent />
         </Router>
       </SmoothScroll>
     </>

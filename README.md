@@ -1,26 +1,27 @@
-# 🛡️ Satark: Welfare Anomaly Detection Engine
+# Satark: Collaborative Fintech Security Platform (Phase 1)
 
-Satark (Hindi for "Alert/Cautious") is a deterministic Fintech and Graph-Networking engine designed to identify anomalous clusters and proxy networks exploiting universal state welfare systems and Direct Benefit Transfers (DBT). 
+Satark (Hindi for "Alert/Cautious") is a deterministic Fintech and Graph-Networking engine designed to identify anomalous clusters, multi-hop financial fraud, and money laundering (like Smurfing rings) without sharing raw customer data.
 
-Instead of dealing with computationally heavy and error-prone ML heuristics like OCR, Satark operates directly on the financial schema level. It aggressively scans PAN transactions and bank account routing to detect immediate fraud networks before capital is disbursed.
+Instead of dealing with computationally heavy and error-prone ML heuristics like OCR, Satark operates directly on the financial schema level, catching coordinated fraud networks before capital is fully siphoned.
 
-## 🚀 The Architecture
-Satark is a multi-layered GovTech anti-spoofing engine:
-1. Citizens apply via a modern Glassmorphism React portal using their PAN and Target Bank Account. The application portal dynamically checks their application state to prevent duplicates.
-2. Our FastAPI backend intercepts new applications, checking for prior financial history. To handle zero-history users cleanly, an **Auto-Spoofer** seamlessly injects 3 years of randomized CREDIT data (`pan_financial_records`) on-the-fly, locking down the pipeline.
-3. The application is routed to a distributed Celery task queue, ensuring the main server never blocks under heavy load.
-4. A deterministic **Financial Rule Engine** scans the applicant's PAN history for active state treasury deposits (Government Employees) and excessive wealth accumulation (> ₹2,500,000 threshold or an average of > ₹250,000 yearly).
-5. An in-memory **Graph Inspector (NetworkX)** maps the connections between PANs and target bank accounts. If a proxy network is detected (e.g., > 3 distinct PANs routing welfare money to the exact same bank account), the entire cluster is flagged and blocked.
-6. The Citizen is issued a dynamically drawn, integrity-checked PDF Receipt mapping their fetched 3-Year PAN income explicitly.
+## The Architecture & Workflow
+SATARK operates on a Federated Intelligence Model. Instead of sharing raw customer data, banks connect their localized nodes to a central Neural Kernel that analyzes cryptographic identifiers.
 
-## 👾 The Stack
+### Step-by-Step System Flow:
+1. **Interactive Entry**: Institutional portals featuring cursor-tracking spotlight heuristics for forensic focus.
+2. **Institutional Ingestion**: High-throughput transactions (5,000+ nodes) are ingested via a FastAPI gateway.
+3. **Distributed Analysis**: Celery workers execute Tarjan's SCC and Isolation Forest algorithms in parallel.
+4. **Cinematic Visualization**: Live transaction topology is rendered in a 3D interactive galaxy for analysts, utilizing a nested spherical physics lock.
+5. **Cross-Bank Verification**: Interactive simulation allowing analysts to verify anomalous nodes with external institutions in real-time.
 
-* **Frontend**: React, TypeScript, Tailwind CSS, Framer Motion, Recharts, jsPDF.
-* **Backend**: FastAPI, SQLite (WAL mode for concurrent writes).
-* **Distributed Queue**: Celery, Redis.
-* **Analysis Engine**: NetworkX, Python.
+## The Stack
 
-## ⚙️ How to run this locally 
+*   **Frontend**: React 18 (TypeScript), Vite, Tailwind CSS, Framer Motion, react-force-graph-3d, Three.js.
+*   **Backend**: FastAPI, SQLite (Relational), Neo4j (Graph), networkx, scikit-learn.
+*   **Distributed Queue**: Celery (gevent pool for Windows), Redis.
+*   **Data Integrity**: HMAC-SHA256 Payload Validation, Zero-PII Cryptographic Masking.
+
+## How to run this locally 
 
 Since we are running an asynchronous queue, getting this running requires a couple of specific terminal windows. 
 
@@ -31,16 +32,16 @@ python -m venv venv
 source venv/bin/activate # Mac/Linux
 
 pip install -r requirements.txt
-python generate_pan_data.py # Seeds the SQLite DB with 500 PANs and traped proxy networks
+python generate_threat_network.py # Seeds the Neo4j and SQLite DB with 5,000+ nodes and fraud patterns
 uvicorn main:app --reload
 ```
-*The server will boot on `http://localhost:8000`*
+*The server will boot on http://localhost:8000*
 
 **Terminal 2: The Task Queue (Celery)**
-*CRITICAL*: You MUST have Redis running locally. If you're on Windows, run it through WSL (`sudo service redis-server start`). 
 ```bash
 .\venv\Scripts\activate
-celery -A main.celery_app worker --pool=solo --loglevel=info
+# For Windows, use solo pool or gevent
+celery -A tasks worker --loglevel=info --pool=solo
 ```
 
 **Terminal 3: The Frontend (Vite/React)**
@@ -49,7 +50,10 @@ cd frontend
 npm install
 npm run dev
 ```
-*The React portal will boot on `http://localhost:5173`*
+*The React portal will boot on http://localhost:5173*
 
-## 🏁 Live Data Generator
-The `generate_pan_data.py` script automatically builds a `welfare_db.sqlite` database populated with 500 realistic citizen PANs spanning 3 years of financial history. It intentionally injects proxy networks and high-wealth individuals so the Admin Dashboard populates beautifully on boot.
+## Upcoming: Phase 2
+In the Phase 2 update, we will incorporate federated learning across multiple banks to preserve total graph anonymity and implement Private Set Intersection (PSI) for secure cross-bank matching.
+
+## Live Data Generator
+The `generate_threat_network.py` script automatically builds the threat databases. It intentionally injects complex fraud patterns (Smurfing, Cycles, Velocity Bursts) so the Admin Dashboard and 3D Visualizer populate beautifully on boot.

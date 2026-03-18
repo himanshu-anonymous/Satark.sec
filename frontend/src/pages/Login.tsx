@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { LogIn, AlertCircle } from 'lucide-react';
 
 const Login = () => {
@@ -34,7 +34,7 @@ const Login = () => {
                 if (data.role === 'admin') {
                     navigate('/dashboard');
                 } else {
-                    navigate('/apply');
+                    navigate('/bank-portal');
                 }
                 window.dispatchEvent(new Event('auth-change'));
             } else {
@@ -54,8 +54,8 @@ const Login = () => {
                     <div className="inline-flex p-3 rounded-full bg-[#006C67]/10 text-[#006C67] mb-4 border border-[#006C67]/30">
                         <LogIn className="w-8 h-8" />
                     </div>
-                    <h2 className="text-2xl font-bold text-[#121212]">Secure Login</h2>
-                    <p className="text-sm text-[#121212]/80 font-medium mt-2">Access your Satark account</p>
+                    <h2 className="text-2xl font-bold text-[#121212]">Infrastructure Access</h2>
+                    <p className="text-sm text-[#121212]/80 font-medium mt-2">Connect to the Satark Neural Engine</p>
                 </div>
 
                 {error && (
@@ -67,21 +67,17 @@ const Login = () => {
 
                 <form onSubmit={handleLogin} className="space-y-4">
                     <div>
-                        <label className="block text-sm font-bold text-[#121212]/90 mb-1">Username</label>
-                        <input type="text" required value={username} onChange={e => setUsername(e.target.value)} className="w-full bg-white/40 border border-[#121212]/10 rounded-lg px-4 py-3 text-[#121212] font-medium placeholder-[#121212]/50 focus:outline-none focus:ring-2 focus:ring-[#006C67] transition-all" placeholder="Enter username" />
+                        <label className="block text-sm font-bold text-[#121212]/90 mb-1">Node Username</label>
+                        <input type="text" required value={username} onChange={e => setUsername(e.target.value)} className="w-full bg-white/40 border border-[#121212]/10 rounded-lg px-4 py-3 text-[#121212] font-medium placeholder-[#121212]/50 focus:outline-none focus:ring-2 focus:ring-[#006C67] transition-all" placeholder="Enter node ID" />
                     </div>
                     <div>
-                        <label className="block text-sm font-bold text-[#121212]/90 mb-1">Password</label>
+                        <label className="block text-sm font-bold text-[#121212]/90 mb-1">Access Key</label>
                         <input type="password" required value={password} onChange={e => setPassword(e.target.value)} className="w-full bg-white/40 border border-[#121212]/10 rounded-lg px-4 py-3 text-[#121212] font-medium placeholder-[#121212]/50 focus:outline-none focus:ring-2 focus:ring-[#006C67] transition-all" placeholder="••••••••" />
                     </div>
-                    <button disabled={loading} type="submit" className="w-full bg-[#E27C37] hover:bg-[#c96a2e] py-3 rounded-lg text-white font-semibold shadow-md active:scale-95 transition-all mt-2">
-                        {loading ? 'Authenticating...' : 'Sign In'}
+                    <button disabled={loading} type="submit" className="w-full bg-[#121212] text-white py-3 rounded-lg font-semibold shadow-md active:scale-95 transition-all mt-2">
+                        {loading ? 'Handshaking...' : 'Authorize Node'}
                     </button>
                 </form>
-
-                <p className="mt-6 text-center text-sm text-[#121212]/80 font-medium">
-                    Not registered? <Link to="/signup" className="text-[#006C67] font-bold hover:underline">Create an account</Link>
-                </p>
             </motion.div>
         </div>
     );

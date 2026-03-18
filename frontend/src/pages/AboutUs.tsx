@@ -3,86 +3,84 @@ import { motion } from 'framer-motion';
 const teamMembers = [
     {
         name: "Himanshu Patil",
-        role: "Backend & Systems Architect",
-        image: "/himanshupatil.png",
-        bio: "Himanshu engineered Satark’s core data pipeline. Specializing in Python, TypeScript, and distributed architecture, he built the high-concurrency backend and anomaly detection engine, ensuring the platform scales flawlessly under state-level loads.",
+        role: "System Architecture & Backend",
+        description: "Engineered the high-throughput asynchronous FastApi pipeline and the core Graph-Network anomaly detection logic.",
+        image: "/himanshupatil.png"
     },
     {
         name: "Aarya Maurya",
-        role: "Lead Frontend Engineer",
-        image: "/aaryamaurya.png",
-        bio: "Translating complex threat analytics into actionable bureaucracy. Aarya engineered the minimalist, high-contrast user interface, utilizing advanced Glassmorphism and Tailwind CSS to ensure the platform is as intuitive for local government operators as it is impenetrable to fraudsters.",
+        role: "Frontend Engineering",
+        description: "Crafted the immersive, glassmorphic UI and interactive data visualization interfaces.",
+        image: "/aaryamaurya.png"
     },
     {
         name: "Soham Shirke",
-        role: "Database Architect",
-        image: "/sohamshirke.png",
-        bio: "The guardian of the data pipeline. Soham designed and deployed the resilient database architecture that powers Satark's anomaly detection. He engineered the high-speed querying logic that allows the system to cross-reference years of financial ledgers in milliseconds.",
+        role: "Database & Data Structuring",
+        description: "Designed the concurrent WAL-enabled databases and synthetic transaction architectures.",
+        image: "/sohamshirke.png"
     },
     {
         name: "Saksham Jaiswal",
-        role: "Interaction Engineer",
-        image: "/sakshamjaiswal.png",
-        bio: "Bridging the gap between static data and human intuition. Saksham brought the application to life through precision state management and dynamic UI scripting. He integrated the buttery-smooth Framer Motion animations and micro-interactions that give Satark its premium, enterprise-grade feel.",
+        role: "Scripting & Motion",
+        description: "Developed the seamless framer-motion transitions, loading animations, and dynamic UI interactions.",
+        image: "/sakshamjaiswal.png"
     }
 ];
 
 const AboutUs = () => {
     return (
-        <div className="w-full flex flex-col pt-32 pb-24 px-6 md:px-12 lg:px-24">
-            {/* The Vision Section */}
-            <section className="max-w-4xl mx-auto text-center mb-32 relative z-10">
-                <motion.div
-                    initial={{ y: 20, opacity: 0 }}
-                    animate={{ y: 0, opacity: 1 }}
+        <div className="w-full flex justify-center items-center py-20 px-4 md:px-8 mt-12 mb-24 min-h-screen">
+            <div className="max-w-6xl w-full flex flex-col items-center">
+                
+                <motion.div 
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.8 }}
+                    className="text-center mb-20"
                 >
-                    <h1 className="text-5xl md:text-7xl font-black text-[#121212] mb-10 tracking-tight font-['Playfair_Display']">
-                        Our Vision.
-                    </h1>
-                    <p className="text-lg md:text-xl font-medium text-[#121212]/90 leading-relaxed max-w-4xl mx-auto">
-                        Building an un-gameable truth engine for India's welfare infrastructure. Satark eradicates systemic leakage in <span className="text-[#006C67] font-bold">Direct Benefit Transfers (DBT)</span> through real-time, <span className="text-[#006C67] font-bold">PAN-based financial audits</span>—ensuring state funds bypass fraudulent syndicates and reach the citizens who truly need them.
+                    <h1 className="text-5xl md:text-7xl font-black text-[#121212] mb-6 tracking-tight">The Architects</h1>
+                    <div className="w-24 h-1 bg-[#E27C37] mx-auto rounded-full mb-8"></div>
+                    
+                    <p className="text-sm md:text-base text-[#121212]/70 max-w-2xl mx-auto font-medium leading-relaxed italic">
+                        "To break the silos of modern banking. Satark provides edge-powered, cryptographic threat intelligence, allowing financial institutions to collaboratively destroy multi-hop money laundering networks without compromising user privacy."
                     </p>
                 </motion.div>
-            </section>
 
-            {/* Team Layout Section */}
-            <section className="max-w-6xl mx-auto space-y-32 relative z-10">
-                {teamMembers.map((member, index) => {
-                    const isEven = index % 2 === 0;
-                    return (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 w-full">
+                    {teamMembers.map((member, index) => (
                         <motion.div
                             key={member.name}
-                            initial={{ y: 30, opacity: 0 }}
-                            whileInView={{ y: 0, opacity: 1 }}
-                            viewport={{ once: true, margin: "-100px" }}
-                            transition={{ duration: 0.8 }}
-                            className={`flex flex-col ${isEven ? 'md:flex-row' : 'md:flex-row-reverse'} items-center gap-12 md:gap-20`}
+                            initial={{ opacity: 0, y: 30 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.6, delay: index * 0.15 }}
+                            className="flex flex-col items-center text-center"
                         >
-                            {/* Image Container */}
-                            <div className="w-full md:w-1/2 flex justify-center">
-                                <div className="relative w-72 h-72 md:w-96 md:h-96">
-                                    <img
-                                        src={member.image}
-                                        alt={member.name}
-                                        className="w-full h-full object-cover rounded-2xl shadow-[0_20px_50px_rgba(0,108,103,0.15)] border border-white/40 animate-[bounce_3s_ease-in-out_infinite]"
-                                        style={{ animationDuration: `${3 + index * 0.2}s` }} // Slight offset for each floating animation
-                                    />
-                                </div>
-                            </div>
-
-                            {/* Bio Container */}
-                            <div className="w-full md:w-1/2 flex-col justify-center text-center md:text-left">
-                                <h3 className="text-3xl md:text-4xl font-black text-[#121212] mb-2">{member.name}</h3>
-                                <p className="text-[#E27C37] font-bold text-lg tracking-wider uppercase mb-6">{member.role}</p>
-                                <p className="text-[#121212]/80 font-medium text-lg leading-relaxed">
-                                    {member.bio}
-                                </p>
-                            </div>
+                            <motion.div 
+                                className="w-48 h-48 mb-6 rounded-2xl overflow-hidden glass-panel p-2 flex items-center justify-center bg-white/40 shadow-[0_15px_30px_rgba(0,0,0,0.1)]"
+                                animate={{ y: [-10, 10, -10] }}
+                                transition={{ duration: 5 + (index % 2), repeat: Infinity, ease: "easeInOut" }}
+                            >
+                                <img 
+                                    src={member.image} 
+                                    alt={member.name} 
+                                    className="w-full h-full object-cover rounded-xl filter drop-shadow-md brightness-95"
+                                    onError={(e) => {
+                                        // Fallback if image doesn't exist yet
+                                        (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${member.name.replace(' ', '+')}&background=006C67&color=fff&size=200`;
+                                    }}
+                                />
+                            </motion.div>
+                            
+                            <h3 className="text-2xl font-black text-[#121212] tracking-tight">{member.name}</h3>
+                            <p className="text-[#006C67] font-bold text-sm uppercase tracking-widest mt-1 mt-2 mb-4">{member.role}</p>
+                            <p className="text-[#121212]/70 text-sm font-medium leading-relaxed px-2">
+                                {member.description}
+                            </p>
                         </motion.div>
-                    );
-                })}
-            </section>
+                    ))}
+                </div>
+
+            </div>
         </div>
     );
 };

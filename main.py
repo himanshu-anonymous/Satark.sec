@@ -1,369 +1,271 @@
+from fastapi import FastAPI, HTTPException, Depends, BackgroundTasks
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+import sqlite3
 import os
 import json
-import sqlite3
-from fastapi import FastAPI, File, UploadFile, Form, HTTPException, status, Depends, Request
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
-from pydantic import BaseModel, ValidationError
-from celery import Celery
+from datetime import datetime, timedelta
+from passlib.context import CryptContext
+from jose import JWTError, jwt
+from typing import Optional, List
+from audit_logger import write_worm_log
+from database import get_neo4j_session
+import hmac
+import hashlib
+import pytest
+import io
+from contextlib import redirect_stdout
+import sys
 
-import auth
-import stats
+SECRET_KEY = "SATARK_ENTERPRISE_SCALE_KEY_2026"
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 60 # Strict 1-hour window for enterprise sessions
+ISSUER = "satark.neural.core"
 
-app = FastAPI(title="WelfareGuard AI Main API")
+def verify_payload_hmac(payload_dict: dict, provided_hmac: str) -> bool:
+    # Remove hmac field for validation
+    data = payload_dict.copy()
+    data.pop('payload_hmac', None)
+    data_str = json.dumps(data, sort_keys=True)
+    calculated_hmac = hmac.new(SECRET_KEY.encode(), data_str.encode(), hashlib.sha256).hexdigest()
+    return hmac.compare_digest(calculated_hmac, provided_hmac)
 
-def init_db():
-    conn = sqlite3.connect("welfare_db.sqlite", timeout=20)
-    cursor = conn.cursor()
-    cursor.execute("PRAGMA journal_mode=WAL;")
-    cursor.execute('''
-    CREATE TABLE IF NOT EXISTS users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        username TEXT UNIQUE,
-        hashed_password TEXT,
-        role TEXT,
-        full_name TEXT,
-        age INTEGER,
-        gender TEXT
-    )
-    ''')
-    cursor.execute('''
-    CREATE TABLE IF NOT EXISTS applications (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id TEXT UNIQUE,
-        pan_number TEXT,
-        target_bank_account TEXT,
-        calculated_pan_income REAL,
-        status TEXT DEFAULT 'Under Review',
-        fraud_score REAL DEFAULT 0.0,
-        flag_reason TEXT,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )
-    ''')
-    cursor.execute('''
-    CREATE TABLE IF NOT EXISTS pan_financial_records (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        pan_number TEXT,
-        transaction_type TEXT,
-        amount REAL,
-        financial_year TEXT,
-        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-        credit_account TEXT,
-        debit_account TEXT
-    )
-    ''')
-    cursor.execute("CREATE INDEX IF NOT EXISTS idx_users_username ON users (username)")
-    cursor.execute("CREATE INDEX IF NOT EXISTS idx_pan_records ON pan_financial_records (pan_number)")
-    cursor.execute("SELECT id FROM users WHERE username = 'admin'")
-    if not cursor.fetchone():
-        from auth import get_password_hash
-        pw = get_password_hash("admin_password")
-        cursor.execute("INSERT INTO users (username, hashed_password, role, full_name, age, gender) VALUES ('admin', ?, 'admin', 'System Admin', 35, 'Other')", (pw,))
-    conn.commit()
-    conn.close()
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-init_db()
-
-app.include_router(auth.router)
-app.include_router(stats.router)
-
-@app.exception_handler(ValueError)
-async def value_error_handler(request: Request, exc: ValueError):
-    return JSONResponse(status_code=400, content={"status": "error", "message": str(exc)})
-
-@app.exception_handler(Exception)
-async def global_exception_handler(request: Request, exc: Exception):
-    return JSONResponse(status_code=500, content={"status": "error", "message": str(exc)})
+app = FastAPI(title="Satark Neural API")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:5173", "*"],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-celery_app = Celery(
-    "financial_tasks",
-    broker="redis://localhost:6379/0",
-    backend="redis://localhost:6379/0",
-    include=['financial_worker']
-)
+DB_NAME = "fintech_threat_db.sqlite"
 
-class ApplicationData(BaseModel):
-    pan_number: str
-    target_bank_account: str
-    # Demographics updated during apply to simulate a comprehensive "form" submission
-    full_name: str
-    age: int
-    gender: str
+def get_db():
+    conn = sqlite3.connect(DB_NAME)
+    conn.row_factory = sqlite3.Row
+    return conn
 
-# Ensure upload directory exists
-os.makedirs("temp_uploads", exist_ok=True)
+class EdgePayloadV12(BaseModel):
+    schema_version: str
+    bank_id: str
+    sender_token: str
+    receiver_token: str
+    amount_inr: float
+    timestamp: str
+    channel: str
+    txn_type: str
+    amount_bucket: str
+    risk_hints: List[str]
+    epoch: str
+    payload_hmac: str
 
-@app.post("/api/apply", status_code=status.HTTP_202_ACCEPTED)
-async def apply(
-    payload: ApplicationData,
-    current_user: dict = Depends(auth.get_current_user)
-):
-    try:
-        user_id = current_user["username"] # In our schema, username acts as unique identity (usually Aadhaar for a citizen)
-        
-        # Save to SQLite immediately
-        conn = sqlite3.connect("welfare_db.sqlite", timeout=20)
-        cursor = conn.cursor()
-        cursor.execute("PRAGMA journal_mode=WAL;")
-        
-        # AUTO-SPOOFING FIX: Check pan_financial_records
-        cursor.execute("SELECT COUNT(*) FROM pan_financial_records WHERE pan_number = ?", (payload.pan_number,))
-        if cursor.fetchone()[0] == 0:
-            import random
-            from datetime import datetime
-            transactions = []
-            for year in [2023, 2024, 2025]:
-                amount = random.uniform(150000, 900000)
-                # Just mock a timestamp within the year
-                ts = f"{year}-06-15 10:00:00"
-                transactions.append((
-                    payload.pan_number,
-                    'CREDIT',
-                    amount,
-                    str(year),
-                    ts,
-                    'EXTERNAL_SOURCE',
-                    payload.target_bank_account
-                ))
-            cursor.executemany("INSERT INTO pan_financial_records (pan_number, transaction_type, amount, financial_year, timestamp, credit_account, debit_account) VALUES (?, ?, ?, ?, ?, ?, ?)", transactions)
+class InstitutionRegister(BaseModel):
+    bank_name: str
+    institution_id: str
+    compliance_email: str
+    password: str
 
-        cursor.execute("SELECT id FROM applications WHERE user_id = ?", (user_id,))
-        if cursor.fetchone():
-             cursor.execute('''
-             UPDATE applications 
-             SET pan_number = ?, target_bank_account = ?, status = 'Under Review'
-             WHERE user_id = ?
-             ''', (payload.pan_number, payload.target_bank_account, user_id))
-        else:
-             cursor.execute('''
-             INSERT INTO applications (user_id, pan_number, target_bank_account)
-             VALUES (?, ?, ?)
-             ''', (user_id, payload.pan_number, payload.target_bank_account))
-             
-        # Also update the user's demographic record
-        cursor.execute('''
-             UPDATE users
-             SET full_name = ?, age = ?, gender = ?
-             WHERE username = ?
-        ''', (payload.full_name, payload.age, payload.gender, user_id))
-             
-        conn.commit()
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
-    finally:
-        if conn:
-            conn.close()
+class InstitutionLogin(BaseModel):
+    institution_id: str
+    password: str
 
-    # Dispatch to Celery queue (Non-blocking)
-    celery_app.send_task("financial_worker.validate_pan", args=[user_id, payload.pan_number, payload.target_bank_account])
+class Token(BaseModel):
+    access_token: str
+    token_type: str
 
-    return {"message": "Application accepted. Subject undergoing silent background analysis.", "status": "processing"}
 
-class RTOCheckResponse(BaseModel):
-    has_luxury_vehicle: bool
-    vehicle_details: str
+def get_password_hash(password):
+    return pwd_context.hash(password)
 
-LUXURY_CODES = ["MH-01-BMW-0001", "DL-1C-MERC-9999", "KA-01-AUDI-5555", "GJ-01-POR-7777"]
+def verify_password(plain_password, hashed_password):
+    return pwd_context.verify(plain_password, hashed_password)
 
-@app.get("/mock-api/rto-check", response_model=RTOCheckResponse)
-async def check_rto(aadhaar_id: str):
-    try:
-        conn = sqlite3.connect("welfare_db.sqlite")
-        cursor = conn.cursor()
-        cursor.execute("SELECT rto_vehicle_reg_number FROM applications WHERE aadhaar_id = ?", (aadhaar_id,))
-        result = cursor.fetchone()
-        conn.close()
-        
-        if result and result[0]:
-            rto_code = result[0]
-            if any(luxury_code in rto_code for luxury_code in LUXURY_CODES):
-                return RTOCheckResponse(
-                    has_luxury_vehicle=True,
-                    vehicle_details=f"High-Value Asset Detected (Luxury Vehicle): {rto_code}"
-                )
-            return RTOCheckResponse(
-                has_luxury_vehicle=False,
-                vehicle_details=f"Standard Vehicle: {rto_code}"
-            )
-    except Exception as e:
-        pass
-    
-    return RTOCheckResponse(
-        has_luxury_vehicle=False,
-        vehicle_details="Standard/No Vehicle"
+def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
+    to_encode = data.copy()
+    expire = datetime.utcnow() + (expires_delta or timedelta(minutes=15))
+    to_encode.update({
+        "exp": expire,
+        "iss": ISSUER,
+        "iat": datetime.utcnow()
+    })
+    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+
+
+from fastapi.security import OAuth2PasswordBearer
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
+
+def get_current_institution(token: str = Depends(oauth2_scheme)):
+    credentials_exception = HTTPException(
+        status_code=401,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
     )
-
-@app.get("/api/applications")
-async def get_applications(user_id: str = None, current_admin: dict = Depends(auth.get_current_admin)):
     try:
-        conn = sqlite3.connect("welfare_db.sqlite", timeout=20)
-        conn.row_factory = sqlite3.Row
-        cursor = conn.cursor()
-        cursor.execute("PRAGMA journal_mode=WAL;")
-        
-        cursor.execute("SELECT financial_year, amount, pan_number FROM pan_financial_records WHERE transaction_type = 'CREDIT'")
-        all_records = cursor.fetchall()
-        
-        yearly_by_pan = {}
-        for r in all_records:
-            pan = r["pan_number"]
-            y = r["financial_year"]
-            amt = r["amount"]
-            if pan not in yearly_by_pan:
-                yearly_by_pan[pan] = {}
-            yearly_by_pan[pan][y] = yearly_by_pan[pan].get(y, 0.0) + amt
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        institution_id: str = payload.get("sub")
+        if institution_id is None or payload.get("iss") != ISSUER:
+            raise credentials_exception
+    except JWTError:
+        raise credentials_exception
+    
+    db = get_db()
+    institution = db.execute("SELECT * FROM institutions WHERE institution_id = ?", (institution_id,)).fetchone()
+    db.close()
+    if institution is None:
+        raise credentials_exception
+    return dict(institution)
 
-        if user_id:
-            cursor.execute("SELECT * FROM applications WHERE user_id LIKE ? ORDER BY fraud_score DESC", (f'%{user_id}%',))
-        else:
-            cursor.execute("SELECT * FROM applications ORDER BY fraud_score DESC")
-            
-        rows = cursor.fetchall()
-        conn.close()
-        
-        results = []
-        for row in rows:
-            d = dict(row)
-            d["yearly_incomes"] = yearly_by_pan.get(d["pan_number"], {})
-            results.append(d)
-        return results
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/api/my-application")
-async def get_my_application(current_user: dict = Depends(auth.get_current_user)):
+from psi_engine import psi_service
+
+class PSIRequest(BaseModel):
+    bank_a_ciphertexts: List[str]
+    bank_b_ciphertexts: List[str]
+
+@app.post("/api/psi/intersect")
+def psi_intersect(req: PSIRequest, current_institution: dict = Depends(get_current_institution)):
+    intersection = psi_service.intersect(req.bank_a_ciphertexts, req.bank_b_ciphertexts)
+    write_worm_log("PSI_INTERSECTION_EXECUTED", {"match_count": len(intersection)}, institution_id=current_institution["institution_id"])
+    return {"intersection_ciphertexts": intersection, "status": "secure_match_verified"}
+
+@app.get("/")
+def health_check():
+    return {"status": "Satark API is live", "version": "1.3"}
+
+@app.post("/api/auth/register")
+def register_institution(inst: InstitutionRegister):
+    db = get_db()
     try:
-        conn = sqlite3.connect("welfare_db.sqlite", timeout=20)
-        conn.row_factory = sqlite3.Row
-        cursor = conn.cursor()
-        cursor.execute("PRAGMA journal_mode=WAL;")
-        
-        # User username maps to applications.user_id, join with users for full_name
-        cursor.execute('''
-            SELECT a.*, u.full_name, u.age, u.gender 
-            FROM applications a
-            JOIN users u ON a.user_id = u.username
-            WHERE a.user_id = ?
-        ''', (current_user["username"],))
-        app_row = cursor.fetchone()
-        
-        if not app_row:
-            conn.close()
-            return {"status": "success", "data": None, "message": "No application found."}
-            
-        # Fetch financial verification data 
-        pan = app_row["pan_number"]
-        yearly_incomes = {}
-        if pan:
-            cursor.execute("SELECT financial_year, amount FROM pan_financial_records WHERE pan_number = ? AND transaction_type = 'CREDIT'", (pan,))
-            records = cursor.fetchall()
-            for r in records:
-                y = r["financial_year"]
-                yearly_incomes[y] = yearly_incomes.get(y, 0.0) + r["amount"]
-                
-        conn.close()
-        
-        data_dict = dict(app_row)
-        data_dict["yearly_incomes"] = yearly_incomes
-        
-        return {"status": "success", "data": data_dict}
+        hashed_password = get_password_hash(inst.password)
+        db.execute(
+            "INSERT INTO institutions (bank_name, institution_id, compliance_email, hashed_password, role) VALUES (?, ?, ?, ?, ?)",
+            (inst.bank_name, inst.institution_id, inst.compliance_email, hashed_password, "analyst")
+        )
+        db.commit()
+        return {"status": "success", "message": "Institution registered successfully"}
+    except sqlite3.IntegrityError:
+        raise HTTPException(status_code=400, detail="Institution ID already exists")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e))
+    finally:
+        db.close()
 
-@app.get("/api/users")
-async def get_users(current_admin: dict = Depends(auth.get_current_admin)):
+@app.post("/api/auth/login")
+def login_institution(auth: InstitutionLogin):
+    db = get_db()
+    institution = db.execute("SELECT * FROM institutions WHERE institution_id = ?", (auth.institution_id,)).fetchone()
+    db.close()
+    
+    if not institution or not verify_password(auth.password, institution["hashed_password"]):
+        raise HTTPException(status_code=401, detail="Invalid institution ID or password")
+    
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": institution["institution_id"], "role": institution["role"]}, 
+        expires_delta=access_token_expires
+    )
+    
+    write_worm_log("LOGIN_SUCCESS", {"role": institution["role"], "mfa_verified": True}, institution_id=institution["institution_id"])
+    return {"access_token": access_token, "token_type": "bearer", "role": institution["role"]}
+
+@app.get("/api/auth/me")
+def read_institutions_me(current_institution: dict = Depends(get_current_institution)):
+    current_institution.pop("hashed_password")
+    return current_institution
+
+@app.get("/transactions")
+def get_transactions(current_institution: dict = Depends(get_current_institution)):
+    neo = get_neo4j_session()
+    query = """
+    MATCH (s:Account)-[r:TRANSFERRED_TO]->(t:Account) 
+    RETURN r.txn_id AS txn_id, s.token AS sender_account_id, t.token AS receiver_account_id, 
+           r.amount AS amount, r.timestamp AS timestamp, r.is_flagged AS is_flagged, r.fraud_pattern AS fraud_pattern 
+    ORDER BY r.timestamp DESC LIMIT 100
+    """
+    txns = neo.query(query)
+    return [dict(t) for t in txns]
+
+@app.get("/accounts")
+def get_accounts(current_institution: dict = Depends(get_current_institution)):
+    neo = get_neo4j_session()
+    accounts = neo.query("MATCH (n:Account) RETURN n.token AS account_id, n.bank_id AS bank_id, n.account_type AS account_type, n.risk_status AS risk_status")
+    return [dict(a) for a in accounts]
+
+@app.get("/api/threat-stats")
+def get_stats(current_institution: dict = Depends(get_current_institution)):
+    neo = get_neo4j_session()
+    total_acc = neo.query("MATCH (n:Account) RETURN count(n) AS c")[0]["c"]
+    total_txn = neo.query("MATCH ()-[r:TRANSFERRED_TO]->() RETURN count(r) AS c")[0]["c"]
+    flagged = neo.query("MATCH ()-[r:TRANSFERRED_TO {is_flagged: 1}]->() RETURN count(r) AS c")[0]["c"]
+    frozen = neo.query("MATCH ()-[r:TRANSFERRED_TO {is_flagged: 1}]->() RETURN sum(r.amount) AS c")[0]["c"] or 0
+    return {
+        "total_accounts": total_acc,
+        "total_transactions": total_txn,
+        "flagged_networks_blocked": flagged,
+        "frozen_suspicious_capital": frozen
+    }
+
+@app.get("/api/graph")
+def get_graph(current_institution: dict = Depends(get_current_institution)):
+    neo = get_neo4j_session()
+    query = """
+    MATCH (f:Account {risk_status: 'FLAGGED'})
+    OPTIONAL MATCH (f)-[r:TRANSFERRED_TO]-(neighbor:Account)
+    WITH f, r, neighbor
+    RETURN collect(DISTINCT f) + collect(DISTINCT neighbor) AS nodes, 
+           collect(DISTINCT r) AS links
+    """
+    res = neo.query(query)[0]
+    
+    nodes = [{"id": n["token"], "risk_status": n["risk_status"], "is_flagged": n["risk_status"] == "FLAGGED"} for n in res["nodes"]]
+    links = [{"source": l.start_node["token"], "target": l.end_node["token"], "amount": l["amount"], "is_flagged": l["is_flagged"]} for l in res["links"]]
+    
+    total_acc = neo.query("MATCH (n:Account) RETURN count(n) AS c")[0]["c"]
+    return {
+        "nodes": nodes, 
+        "links": links, 
+        "metadata": {
+            "total_analyzed": total_acc,
+            "rendered_nodes": len(nodes)
+        }
+    }
+
+@app.post("/ingest_transaction", status_code=202)
+def ingest_transaction(payload: EdgePayloadV12, current_institution: dict = Depends(get_current_institution)):
     try:
-        conn = sqlite3.connect("welfare_db.sqlite")
-        conn.row_factory = sqlite3.Row
-        cursor = conn.cursor()
-        cursor.execute("SELECT id, username, role FROM users WHERE role = 'citizen'")
-        rows = cursor.fetchall()
-        conn.close()
-        return [dict(row) for row in rows]
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        txn_time = datetime.fromisoformat(payload.timestamp.replace('Z', ''))
+        now = datetime.utcnow()
+        if abs((now - txn_time).total_seconds()) > 300:
+            raise HTTPException(status_code=400, detail="Replay Attack Detected")
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid timestamp format")
 
-class ActionPayload(BaseModel):
-    action: str
+    if not verify_payload_hmac(payload.dict(), payload.payload_hmac):
+         raise HTTPException(status_code=401, detail="Invalid Payload HMAC")
 
-@app.post("/api/applications/{app_id}/action")
-async def admin_action(app_id: int, payload: ActionPayload, current_admin: dict = Depends(auth.get_current_admin)):
-    try:
-        conn = sqlite3.connect("welfare_db.sqlite", timeout=20)
-        cursor = conn.cursor()
-        cursor.execute("PRAGMA journal_mode=WAL;")
-        
-        new_status = ""
-        if payload.action == "approve":
-            new_status = "Approved"
-        elif payload.action == "force_approve":
-            new_status = "Approved (Forced)"
-        elif payload.action == "flag_rbi":
-            new_status = "Under Investigation"
-        elif payload.action == "flag_cid":
-            new_status = "Escalated to CID (Locked)"
-        else:
-            conn.close()
-            raise HTTPException(status_code=400, detail="Invalid action")
-            
-        cursor.execute("UPDATE applications SET status = ? WHERE id = ?", (new_status, app_id))
-        conn.commit()
-        conn.close()
-        return {"status": "success", "message": f"Application updated to {new_status}"}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    write_worm_log("API_INGESTION", payload.dict(), institution_id=current_institution["institution_id"])
+    
+    neo = get_neo4j_session()
+    query = """
+    MERGE (sender:Account {token: $sender_token})
+    MERGE (receiver:Account {token: $receiver_token})
+    CREATE (sender)-[r:TRANSFERRED_TO {amount: $amount, txn_id: $txn_id, timestamp: $timestamp, is_flagged: 0}]->(receiver)
+    """
+    neo.query(query, {
+        "sender_token": payload.sender_token,
+        "receiver_token": payload.receiver_token,
+        "amount": payload.amount_inr,
+        "txn_id": "TXN_" + str(int(datetime.now().timestamp() * 1000)),
+        "timestamp": payload.timestamp
+    })
 
-@app.get("/api/threat-analytics")
-async def get_threat_analytics(current_admin: dict = Depends(auth.get_current_admin)):
-    try:
-        conn = sqlite3.connect("welfare_db.sqlite", timeout=20)
-        cursor = conn.cursor()
-        cursor.execute("PRAGMA journal_mode=WAL;")
-        
-        # Group applications by flag_reason where status is not approved
-        cursor.execute("SELECT flag_reason, COUNT(*) as count FROM applications WHERE status != 'Approved' GROUP BY flag_reason")
-        rows = cursor.fetchall()
-        conn.close()
-        
-        analytics_data = []
-        for reason, count in rows:
-            if not reason: continue
-            
-            # Map robust reasons to cleaner category names for chart
-            category_name = "Other"
-            if "CERTIFICATE SPOOFED" in reason:
-                category_name = "Fake Income Detected"
-            elif "Identity Violation" in reason:
-                category_name = "Gender/Age Mismatch"
-            elif "Government Salary" in reason:
-                category_name = "Govt Salary Detected"
-            elif "Proxy Network" in reason:
-                category_name = "Proxy Network"
-            elif "High Wealth" in reason:
-                category_name = "High Wealth Entity"
-            
-            # Check if category already exists, if so add to it, else create
-            existing_cat = next((item for item in analytics_data if item["name"] == category_name), None)
-            if existing_cat:
-                existing_cat["value"] += count
-            else:
-                analytics_data.append({"name": category_name, "value": count})
-                
-        # Sort descending by value
-        analytics_data.sort(key=lambda x: x["value"], reverse=True)
-                
-        return analytics_data
-        
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    import tasks
+    tasks.process_edge.delay(payload.dict())
+    return {"status": "accepted", "message": "Transaction queued", "schema": "v1.3"}
 
 if __name__ == "__main__":
     import uvicorn

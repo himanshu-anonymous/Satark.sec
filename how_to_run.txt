@@ -1,49 +1,55 @@
-=========================================
-🚨 SATARK - UNIVERSAL WELFARE LOCAL ENVIRONMENT SETUP 🚨
-=========================================
+SATARK B2B ANALYST WORKSPACE - EXECUTION GUIDE (PHASE 1)
+=====================================================
 
-Team, to get Satark running on your local machines without crashing, follow these steps exactly in order. You will need 3 separate terminal windows open.
+PREREQUISITES:
+- Python 3.10+ (venv recommended)
+- Node.js & npm (for Frontend)
+- Redis Server (Running on localhost:6379)
+- Neo4j Desktop/Server (Running on bolt://localhost:7687, default user: neo4j, pass: password)
+- SQLite (Local file: fintech_threat_db.sqlite)
 
---- PREREQUISITES ---
-1. Python 3.10+ installed.
-2. Node.js installed (for the React frontend).
-3. REDIS: If you are on Windows, you must install WSL (Ubuntu) and run `sudo apt install redis-server`, then start it with `sudo service redis-server start`.
+STEP 1: INITIALIZE CORE ONTOLOGY & REAL-TIME GRAPH (ENTERPRISE SCALE)
+---------------------------------------------------------------------
+Command: python generate_threat_network.py
+Effect: 
+- Initializes SQLite tables for Institutional Auth (RBAC included).
+- Seeds 5,000 normal account nodes and 15,000 baseline transactions.
+- Injects 3 Precise Fraud Topologies (Smurfing Hub, Tarjan Cycle, Velocity Burst).
+- Creates Database Indexes on Account IDs and Timestamps for sub-second retrieval.
 
---- TERMINAL 1: THE BACKEND & GENERATOR ---
-1. Open terminal in the root folder.
-2. Create and activate your virtual environment:
-   python -m venv venv
-   .\venv\Scripts\activate  (Windows) OR source venv/bin/activate (Mac/Linux)
-3. Install the dependencies:
-   pip install -r requirements.txt
-4. Seed the Database with the new FinTech Engine:
-   python generate_pan_data.py
-   (This builds the 500 initial records, zero-history users will get Auto-Spoofed by the backend later).
-5. Boot the FastAPI server:
-   uvicorn main:app --reload
-   (Server will run on http://localhost:8000)
+STEP 2: START REDIS BROKER (VELOCITY & QUEUE)
+---------------------------------------------
+Command (Docker): docker run -d -p 6379:6379 redis
+Command (Manual): redis-server
+Effect: Initializes the primary transport for Celery tasks and the velocity counter cache used for burst detection.
 
---- TERMINAL 2: THE ML WORKER QUEUE ---
-1. Open a SECOND terminal in the root folder.
-2. Activate the virtual environment again (.\venv\Scripts\activate).
-3. Ensure your WSL Redis server is running (`redis-cli ping` should return `PONG`)!
-4. Boot the Celery worker. *CRITICAL FOR WINDOWS:* You must use the --pool=solo flag!
-   celery -A main.celery_app worker --pool=solo --loglevel=info
+STEP 3: ACTIVATE NEURAL WORKER (CELERY)
+---------------------------------------
+Command: celery -A tasks worker --loglevel=info -P gevent
+Effect: Starts the background analysis engine for HMAC validation, Tarjan SCC cycle detection, Isolation Forest scoring, and Redis velocity auditing.
 
---- TERMINAL 3: THE FRONTEND ---
-1. Open a THIRD terminal.
-2. Navigate to the frontend folder:
-   cd frontend
-   npm install
-   npm run dev
-   (React/Vite will usually run on http://localhost:5173)
+STEP 4: LAUNCH THREAT GATEWAY (BACKEND)
+---------------------------------------
+Command: uvicorn main:app --reload
+Effect: Exposes the Neural API on http://localhost:8000. Facilitates the Bank-Node Authentication flow.
 
---- TROUBLESHOOTING ---
-- If you get "Database is Locked" errors from SQLite in the worker terminal, ensure you successfully ran step 4 in Terminal 1 (`generate_pan_data.py`). The generator script sets `PRAGMA journal_mode=WAL` which enables concurrent writes.
-- If a new Citizen applies, they will temporarily get 3 years of randomly generated CREDIT history (Auto-Spoofing algorithm) to prevent the AI engine from flatlining on ₹0 incomes.
-- Login details: Choose 'Admin' in the portal or login as:
-  Username: admin
-  Password: admin_password
+STEP 5: RUN B2B ANALYST WORKSPACE (FRONTEND)
+--------------------------------------------
+Command: cd frontend && npm run dev
+Effect: Launches the premium Dashbord on http://localhost:5173 featuring 3D Visualizers and Compliance reports.
 
-Let's build this. 
-=========================================
+STEP 6: INJECT DYNAMIC MULTI-PATTERN THREATS (OPTIONAL)
+-------------------------------------------------------
+Command: python inject_demo_anomaly.py
+Effect: Programmatically injects a rich set of fraud patterns:
+- Smurfing Hub (21 nodes funneling capital)
+- Tarjan Cycles (10-node circular money laundering)
+- Velocity Bursts (1 sender hitting 15 recipients rapidly)
+
+DEFAULT CREDENTIALS:
+- Institution ID: BNK-HDFC
+- Password: password123
+
+=====================================================
+SECURITY: HMAC-SHA256 active. Zero-PII masking enabled.
+=====================================================

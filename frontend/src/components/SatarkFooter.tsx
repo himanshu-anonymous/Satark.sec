@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { Instagram } from 'lucide-react';
 
 const SatarkFooter = () => {
     return (
@@ -18,6 +19,16 @@ const SatarkFooter = () => {
                         <Link to="/#problem" className="text-slate-400 hover:text-orange-400 transition-colors text-sm font-medium">The Threat</Link>
                         <Link to="/#solution" className="text-slate-400 hover:text-orange-400 transition-colors text-sm font-medium">Architecture</Link>
                         <Link to="/login" className="text-slate-400 hover:text-orange-400 transition-colors text-sm font-medium">Admin Access</Link>
+                        <a 
+                            href="http://instagram.com/satark.sec" 
+                            target="_blank" 
+                            rel="noopener noreferrer" 
+                            className="text-slate-400 hover:text-[#E4405F] transition-all duration-300 transform hover:scale-110 flex items-center space-x-2"
+                            title="Instagram"
+                        >
+                            <Instagram className="w-5 h-5" />
+                            <span className="text-sm font-medium sr-only md:not-sr-only">Instagram</span>
+                        </a>
                     </div>
 
                     <div className="pt-6 border-t border-white/10 w-full md:w-auto text-left md:text-right">

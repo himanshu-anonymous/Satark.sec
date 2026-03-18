@@ -7,6 +7,8 @@
   --glass-blur: blur(16px);
   --bg-color: #EBEBEB;
   --text-primary: #121212;
+  --sky-400: #38bdf8;
+  --sky-500: #0ea5e9;
 }
 
 
@@ -48,8 +50,8 @@ h3 {
   position: fixed;
   top: 0;
   left: 0;
-  width: 5px;
-  height: 5px;
+  width: 4.25px;
+  height: 4.25px;
   background-color: #1E293B;
   border-radius: 50%;
   pointer-events: none;
@@ -62,8 +64,8 @@ h3 {
   position: fixed;
   top: 0;
   left: 0;
-  width: 20px;
-  height: 20px;
+  width: 17px;
+  height: 17px;
   border: 1px solid rgba(30, 41, 59, 0.5);
   border-radius: 50%;
   pointer-events: none;
@@ -73,8 +75,8 @@ h3 {
 }
 
 .custom-cursor-circle.hovering {
-  width: 30px;
-  height: 30px;
+  width: 25.5px;
+  height: 25.5px;
   border-color: rgba(30, 41, 59, 0.9);
   background-color: rgba(30, 41, 59, 0.1);
 }

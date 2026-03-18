@@ -3,9 +3,9 @@ import { motion } from 'framer-motion';
 const Preloader = () => {
     return (
         <motion.div
-            initial={{ opacity: 1 }}
-            exit={{ opacity: 0, y: -50, filter: "blur(10px)" }}
-            transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
+            initial={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: "-100vh", filter: "blur(10px)" }}
+            transition={{ duration: 1.2, ease: [0.22, 1, 0.36, 1] }}
             className="fixed inset-0 z-[100] bg-[#EBEBEB] flex flex-col items-center justify-center pointer-events-none"
         >
             <motion.h1
