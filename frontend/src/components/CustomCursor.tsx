@@ -77,6 +77,8 @@ const CustomCursor = () => {
                     </filter>
                 </defs>
             </svg>
+
+            //  not in use as of now
             <div ref={circleRef} className="custom-cursor-circle" />
             <div ref={dotRef} className="custom-cursor-dot" />
         </div>

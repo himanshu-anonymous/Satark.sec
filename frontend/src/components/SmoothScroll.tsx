@@ -13,7 +13,7 @@ export default function SmoothScroll({ children }: SmoothScrollProps) {
         wheelMultiplier: 1.0,
         touchMultiplier: 2.0,
     };
-
+// not usxed as of now
     return (
         <ReactLenis root options={lenisOptions}>
             {children}
